@@ -283,7 +283,8 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
         }
 
         // Pass videoCount value to Processor object.
-        sendProcessor.updateVideoCount(videoCount);
+        if (sendProcessor != null)
+            sendProcessor.updateVideoCount(videoCount);
 
         // Create a media file name
         File mediaFile;
@@ -366,29 +367,28 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
     }
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
+        GPS_Enabled = locManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        Network_Enabled = locManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
 
-        if (!firstPassed && status != 0) {
-            CharSequence text= "GPS connected";
-            int duration= Toast.LENGTH_SHORT;
-            Toast toast= Toast.makeText(this, text, duration);
-            toast.show();
-            firstPassed= true;
+        System.out.println(GPS_Enabled);
+        System.out.println(Network_Enabled);
 
-            /////////       ELEMAS SOCKET CONNECTION METHOD         ////////
-            sendProcessor = new Processor(carIndex);
-
+        if (GPS_Enabled || Network_Enabled) {
+            if (!firstPassed) {
+                CharSequence text= "GPS connected";
+                int duration= Toast.LENGTH_SHORT;
+                Toast toast= Toast.makeText(this, text, duration);
+                toast.show();
+                firstPassed = true;
+                sendProcessor = new Processor(carIndex);
+            }
         }
-
-        if (firstPassed && status == 0) {
+        else {
             CharSequence text= "GPS disconnected";
             int duration= Toast.LENGTH_SHORT;
             Toast toast= Toast.makeText(this, text, duration);
             toast.show();
-            firstPassed= false;
-
         }
-
-
     }
 
     @Override
