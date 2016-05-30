@@ -65,6 +65,9 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
     private LocationManager locManager;
     private Location location;
 
+    boolean GPS_Enabled = false;
+    boolean Network_Enabled = false;
+
     Geocoder geocoder;
     //////////////////      ELEMAS GPS MEM.VAR END      //////////////////////
 
@@ -279,9 +282,8 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
             }
         }
 
-        // If videoCount is more than 6 then delete video 1
-        if (videoCount == 6)
-            videoCount = 1;
+        // Pass videoCount value to Processor object.
+        sendProcessor.updateVideoCount(videoCount);
 
         // Create a media file name
         File mediaFile;
@@ -297,7 +299,13 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
         if (mediaFile.exists())
             mediaFile.delete();
 
-        videoCount++;
+
+        // If videoCount is more than 6 then delete video 1
+        if (videoCount == 5)
+            videoCount = 1;
+        else
+            videoCount++;
+
         return mediaFile;
     }
     private void startCamera() {
@@ -358,6 +366,7 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
     }
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
+
         if (!firstPassed && status != 0) {
             CharSequence text= "GPS connected";
             int duration= Toast.LENGTH_SHORT;
