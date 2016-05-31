@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.Random;
 
 /**
@@ -34,18 +35,29 @@ public class Processor {
 
     public void updateVideoCount(int count) {
         currentVideoCount = count;
-        if (count == 1)
-            previousVideoCount = 5;
-        else
-            previousVideoCount = count - 1;
     }
 
     public void sendAccident() {
+        // update된 currentVideoCount와 그 다음 파일을 전송하게 할것
+        accidentOccured= true;
+        //setTriggeredCount();
         try {
             sender.sendAccidentOccur();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 사고났을 경우 sendAccident를 호출받고 그 안에서 이 메서드가 호출됨.
+     * 보낼 동영상, 이어서 보낼 동영상 두 인덱스를 세팅
+     */
+    public void setTriggeredCount() {
+        triggeredCount= currentVideoCount;
+        if (currentVideoCount == 5)
+            triggeredNextCount= 1;
+        else
+            triggeredNextCount= currentVideoCount +1;
     }
 
 
@@ -66,13 +78,14 @@ public class Processor {
 
     // Current video count
     int currentVideoCount = 0;
-    int previousVideoCount = 0;
 
     // sending info
     final int carIndex;
 
     // send accident trigger
     boolean accidentOccured = false;
+    int triggeredCount;
+    int triggeredNextCount;
 
 
     /**
@@ -89,51 +102,58 @@ public class Processor {
         // TODO: 16. 5. 29. 초기값 0.0 인 경우에는 송신하지 않기[완료], socket이 끊어졌을 경우 재연결 시도
 
         /* synchronized */
-        public void sendFile() throws IOException {
+        public void sendFile(int count) throws IOException {
             // directory path
             File dirPath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyCameraApp");
             //String dirPath = "/storage/emulated/legacy/Pictures";
+            File file_current = new File(dirPath.getPath() + File.separator +
+                    "Video_" + count + ".mp4");
 
-            // 파일 내용을 읽으면서 전송
-            // 직전 파일
-            File file = new File(dirPath.getPath() + File.separator +
-                    "Video_" + currentVideoCount + ".mp4");
-            fileInputStream = new FileInputStream(file);
-            bufferedInputStream = new BufferedInputStream(fileInputStream);
 
+            // file buffer size
             int len;
             int size = 4096;
-            byte[] data = new byte[size];
-            while ((len = bufferedInputStream.read(data)) != -1) {
-                dataOutputStream.write(data, 0, len);
+            byte[] data;
+            /** File socket: first file 8001, second file 8002*/
+            Socket fileSocket;
+            try {
+                fileSocket = new Socket("accinoty.pendual.net", 8000);
+                data = new byte[size];
+                // 파일 내용을 읽으면서 전송
+                // 직전 파일
+
+                fileInputStream = new FileInputStream(file_current);
+                bufferedInputStream = new BufferedInputStream(fileInputStream);
+
+                System.out.println("first file sending...");
+
+
+                while ((len = bufferedInputStream.read(data)) != -1) {
+                    dataOutputStream.write(data, 0, len);
+                }
+
+
+                //dataOutputStream.write();
+                dataOutputStream.flush();
+                dataOutputStream.close();
+                bufferedInputStream.close();
+                fileInputStream.close();
+                fileSocket.close();
+                //triggeredCount= 0;
+                //triggeredNextCount= 0;
+
+            } catch (SocketException e) {
+                e.printStackTrace();
             }
-            dataOutputStream.flush();
+            System.out.println("first file sent.");
 
-            // 직전 파일의 하나 이전 파일
-            if (currentVideoCount == 1) {
 
-            }
-            file = new File(dirPath.getPath() + File.separator +
-                    "Video_" + (currentVideoCount - 1) + ".mp4");
-            fileInputStream = new FileInputStream(file);
-            bufferedInputStream = new BufferedInputStream(fileInputStream);
-
-            while ((len = bufferedInputStream.read(data)) != -1) {
-                dataOutputStream.write(data, 0, len);
-            }
-
-            dataOutputStream.flush();
-            dataOutputStream.close();
-            bufferedInputStream.close();
-            fileInputStream.close();
-            //System.out.println("파일 전송 작업을 완료하였습니다.");
-            //System.out.println("보낸 파일의 사이즈 : " + file.length());
         }
-
         /**
          * returned other value, accident around
          */
         synchronized public void sendAccidentAround(int receivedIndex) throws IOException {
+
             // gps info, sender info, time stamp
             System.out.println("gps send (accident_Around)");
 
@@ -156,10 +176,18 @@ public class Processor {
 
                 dataOutputStream.writeUTF(obj.toJSONString());
                 // TODO: 16. 5. 29. >>>file send<<<
-                sendFile();
+                if (triggeredCount != 0) {
+                    sendFile(triggeredNextCount);   // accidentOccured 이후에 호출될 때 처음에 보낸 동영상 다음 파일을 보냄
+                    triggeredCount= 0;
+                    triggeredNextCount= 0;
+                }
+                else
+                    sendFile(currentVideoCount);    // cycle 도는 중에 around호출받았을 떄 최근에 찍은거 보내기
                 System.out.println(latitude);
                 System.out.println(longitude);
                 dataOutputStream.flush();
+
+
             }
 
 
@@ -182,7 +210,7 @@ public class Processor {
 
 
                 dataOutputStream.writeUTF(obj.toJSONString());
-                sendFile();
+                sendFile(triggeredCount);
                 System.out.println(latitude);
                 System.out.println(longitude);
                 dataOutputStream.flush();
@@ -246,6 +274,7 @@ public class Processor {
                             sleep(4700 + (random.nextInt() % 50) * 10);
                             sendCycle();
                         } else if (accidentOccured) {
+                            setTriggeredCount();
                             sendAccidentOccur();
                         } else {
                             sendAccidentAround(returnValueParsed);

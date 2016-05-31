@@ -282,9 +282,7 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
             }
         }
 
-        // Pass videoCount value to Processor object.
-        if (sendProcessor != null)
-            sendProcessor.updateVideoCount(videoCount);
+
 
         // Create a media file name
         File mediaFile;
@@ -300,6 +298,10 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
         if (mediaFile.exists())
             mediaFile.delete();
 
+        // Pass videoCount value to Processor object.
+        if (sendProcessor != null)
+            sendProcessor.updateVideoCount(videoCount);
+        /** 촬영이 다 된 후 완료된 최근 파일을 전달한다는 의미에서 이 위치에서 전송 */
 
         // If videoCount is more than 6 then delete video 1
         if (videoCount == 5)
