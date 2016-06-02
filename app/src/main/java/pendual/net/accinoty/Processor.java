@@ -33,14 +33,17 @@ public class Processor {
         this.location = location;
     }
 
-    public void updateVideoCount(int count) {
+    public void updateVideoCount(int count, boolean isLooping) {
         currentVideoCount = count;
+        // 이전파일이 아니고 다음파일전송이라 일단 사용안함
+        //if (!isLooped)
+        //    isLooped= isLooping;
     }
 
     public void sendAccident() {
         // update된 currentVideoCount와 그 다음 파일을 전송하게 할것
         accidentOccured= true;
-        //setTriggeredCount();
+        setTriggeredCount();
         try {
             sender.sendAccidentOccur();
         } catch (IOException e) {
@@ -51,6 +54,7 @@ public class Processor {
     /**
      * 사고났을 경우 sendAccident를 호출받고 그 안에서 이 메서드가 호출됨.
      * 보낼 동영상, 이어서 보낼 동영상 두 인덱스를 세팅
+     * 1번 파일 이전의 5번 파일이 없는 경우 1번 파일을 재전송하는 것으로.
      */
     public void setTriggeredCount() {
         triggeredCount= currentVideoCount;
@@ -78,6 +82,7 @@ public class Processor {
 
     // Current video count
     int currentVideoCount = 0;
+    boolean isLooped= false;
 
     // sending info
     final int carIndex;
@@ -114,7 +119,6 @@ public class Processor {
             int len;
             int size = 4096;
             byte[] data;
-            /** File socket: first file 8001, second file 8002*/
             Socket fileSocket;
             try {
                 fileSocket = new Socket("accinoty.pendual.net", 8000);
@@ -177,9 +181,16 @@ public class Processor {
                 dataOutputStream.writeUTF(obj.toJSONString());
                 // TODO: 16. 5. 29. >>>file send<<<
                 if (triggeredCount != 0) {
-                    sendFile(triggeredNextCount);   // accidentOccured 이후에 호출될 때 처음에 보낸 동영상 다음 파일을 보냄
-                    triggeredCount= 0;
-                    triggeredNextCount= 0;
+                    try {
+                        // 다음 파일 녹화 완료까지 대기
+                        sleep(10000);
+                        sendFile(triggeredNextCount);   // accidentOccured 이후에 호출될 때 처음에 보낸 동영상 다음 파일을 보냄
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } finally {
+                        triggeredCount = 0;
+                        triggeredNextCount = 0;
+                    }
                 }
                 else
                     sendFile(currentVideoCount);    // cycle 도는 중에 around호출받았을 떄 최근에 찍은거 보내기
@@ -269,7 +280,6 @@ public class Processor {
 
                 try {
                     while (true) {
-                        currentVideoCount = 2;
                         if (returnValueParsed == 0) {
                             sleep(4700 + (random.nextInt() % 50) * 10);
                             sendCycle();
@@ -283,6 +293,7 @@ public class Processor {
                         JSONObject obj = (JSONObject) new JSONParser().parse(returnValue.trim());
                         returnValueParsed = Integer.parseInt(obj.get("ack").toString());
                         System.out.println(returnValueParsed);
+                        System.out.println(accidentOccured);
                     }
 
                 } catch (InterruptedException e) {

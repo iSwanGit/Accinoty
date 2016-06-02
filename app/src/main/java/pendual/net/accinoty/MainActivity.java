@@ -45,6 +45,7 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
 
     private boolean isRecording = false;
     private int videoCount = 1;
+    private boolean isLooping= false;
     //////////////////      EGUNI CAMERA MEM.VAR END        //////////////////////
 
 
@@ -300,14 +301,18 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
 
         // Pass videoCount value to Processor object.
         if (sendProcessor != null)
-            sendProcessor.updateVideoCount(videoCount);
+            sendProcessor.updateVideoCount(videoCount, isLooping);
         /** 촬영이 다 된 후 완료된 최근 파일을 전달한다는 의미에서 이 위치에서 전송 */
 
         // If videoCount is more than 6 then delete video 1
-        if (videoCount == 5)
+        if (videoCount == 5) {
             videoCount = 1;
-        else
+            isLooping= true;
+        }
+        else {
             videoCount++;
+            isLooping= false;
+        }
 
         return mediaFile;
     }
@@ -346,7 +351,18 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
             accelX= (int) event.values[0];
             accelY= (int) event.values[1];
             accelZ= (int) event.values[2];
-
+            /** SM-P600 기준, 화면 좌우 X값, 화면 상하 Y값, 화면 앞뒤로 Z값 */
+            // 10 이상일 때, 사고발생이라고 판단
+            if (accelX > 9 || accelY > 9) {
+                if (sendProcessor!= null) {
+                    sendProcessor.sendAccident();
+                }
+                // Toast view
+                CharSequence text= "Accident occured!!!";
+                int duration= Toast.LENGTH_SHORT;
+                Toast toast= Toast.makeText(this, text, duration);
+                toast.show();
+            }
         }
     }
 
@@ -364,26 +380,36 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
         latPoint= location.getLatitude();
         lngPoint= location.getLongitude();
         this.location = location;
-        if (sendProcessor!= null)
+        if (sendProcessor== null) {
+            if (!firstPassed) {
+                CharSequence text= "GPS connected";
+                int duration= Toast.LENGTH_SHORT;
+                Toast toast= Toast.makeText(this, text, duration);
+                toast.show();
+            }
+            firstPassed = true;
+            sendProcessor = new Processor(carIndex);
+        }
+        else {
             sendProcessor.updateLocation(location);
+        }
     }
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
         GPS_Enabled = locManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
         Network_Enabled = locManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
 
-        System.out.println(GPS_Enabled);
-        System.out.println(Network_Enabled);
+        //System.out.println(GPS_Enabled);
+        //System.out.println(Network_Enabled);
 
         if (GPS_Enabled || Network_Enabled) {
-            if (!firstPassed) {
+            if (firstPassed) {
                 CharSequence text= "GPS connected";
                 int duration= Toast.LENGTH_SHORT;
                 Toast toast= Toast.makeText(this, text, duration);
                 toast.show();
-                firstPassed = true;
-                sendProcessor = new Processor(carIndex);
             }
+
         }
         else {
             CharSequence text= "GPS disconnected";
