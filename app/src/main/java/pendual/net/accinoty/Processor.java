@@ -35,9 +35,9 @@ public class Processor {
 
     public void updateVideoCount(int count, boolean isLooping) {
         currentVideoCount = count;
-        // 이전파일이 아니고 다음파일전송이라 일단 사용안함
-        //if (!isLooped)
-        //    isLooped= isLooping;
+        // 1번 파일 이전의 5번이 없는 경우 처리
+        if (!isLooped)
+            isLooped= isLooping;
     }
 
     public void sendAccident() {
@@ -58,6 +58,15 @@ public class Processor {
      */
     public void setTriggeredCount() {
         triggeredCount= currentVideoCount;
+        if (currentVideoCount == 0)
+            try {
+                Thread.sleep(sleepTime);
+                triggeredCount++;
+                //triggeredCount= currentVideoCount;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
         if (currentVideoCount == 5)
             triggeredNextCount= 1;
         else
@@ -76,6 +85,8 @@ public class Processor {
     DataOutputStream dataOutputStream;
     FileInputStream fileInputStream;
     BufferedInputStream bufferedInputStream;
+    Socket fileSocket;
+    DataOutputStream fileDOS;
 
     // Location
     Location location;
@@ -91,6 +102,8 @@ public class Processor {
     boolean accidentOccured = false;
     int triggeredCount;
     int triggeredNextCount;
+
+    final int sleepTime= 10000;
 
 
     /**
@@ -117,29 +130,35 @@ public class Processor {
 
             // file buffer size
             int len;
-            int size = 4096;
+            int size= 4096;
             byte[] data;
-            Socket fileSocket;
+
             try {
                 fileSocket = new Socket("accinoty.pendual.net", 8000);
-                data = new byte[size];
+                fileDOS= new DataOutputStream(fileSocket.getOutputStream());
+
+
                 // 파일 내용을 읽으면서 전송
                 // 직전 파일
 
                 fileInputStream = new FileInputStream(file_current);
                 bufferedInputStream = new BufferedInputStream(fileInputStream);
-
+                //size= (int)file_current.length();
+                data = new byte[size];
                 System.out.println("first file sending...");
 
+                //fileDOS.writeInt(size);
+                //fileDOS.write(bufferedInputStream.read(data));
 
                 while ((len = bufferedInputStream.read(data)) != -1) {
-                    dataOutputStream.write(data, 0, len);
+                    fileDOS.write(data, 0, len);
                 }
 
 
+
                 //dataOutputStream.write();
-                dataOutputStream.flush();
-                dataOutputStream.close();
+                //fileDOS.flush();
+                fileDOS.close();
                 bufferedInputStream.close();
                 fileInputStream.close();
                 fileSocket.close();
@@ -150,6 +169,8 @@ public class Processor {
                 e.printStackTrace();
             }
             System.out.println("first file sent.");
+            System.out.println(file_current.length());
+
 
 
         }
@@ -183,7 +204,7 @@ public class Processor {
                 if (triggeredCount != 0) {
                     try {
                         // 다음 파일 녹화 완료까지 대기
-                        sleep(10000);
+                        sleep(sleepTime);
                         sendFile(triggeredNextCount);   // accidentOccured 이후에 호출될 때 처음에 보낸 동영상 다음 파일을 보냄
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -192,8 +213,18 @@ public class Processor {
                         triggeredNextCount = 0;
                     }
                 }
-                else
+                else {
+                    if (currentVideoCount == 0) {
+                        // accidentaround 실행시, 아직비디오가 녹화 안된 경우
+                        try {
+                            sleep(sleepTime);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
                     sendFile(currentVideoCount);    // cycle 도는 중에 around호출받았을 떄 최근에 찍은거 보내기
+
+                }
                 System.out.println(latitude);
                 System.out.println(longitude);
                 dataOutputStream.flush();
@@ -281,7 +312,7 @@ public class Processor {
                 try {
                     while (true) {
                         if (returnValueParsed == 0) {
-                            sleep(4700 + (random.nextInt() % 50) * 10);
+                            sleep(4700 + random.nextInt(50) * 10);
                             sendCycle();
                         } else if (accidentOccured) {
                             setTriggeredCount();

@@ -354,9 +354,10 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
             /** SM-P600 기준, 화면 좌우 X값, 화면 상하 Y값, 화면 앞뒤로 Z값 */
             // 10 이상일 때, 사고발생이라고 판단
             if (accelX > 9 || accelY > 9) {
-                if (sendProcessor!= null) {
-                    sendProcessor.sendAccident();
+                if (sendProcessor== null) {
+                    sendProcessor= new Processor(carIndex);
                 }
+                sendProcessor.sendAccident();
                 // Toast view
                 CharSequence text= "Accident occured!!!";
                 int duration= Toast.LENGTH_SHORT;
@@ -389,10 +390,10 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
             }
             firstPassed = true;
             sendProcessor = new Processor(carIndex);
+
         }
-        else {
-            sendProcessor.updateLocation(location);
-        }
+        sendProcessor.updateLocation(location);
+
     }
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
@@ -403,7 +404,7 @@ public class MainActivity extends Activity implements SensorEventListener, Locat
         //System.out.println(Network_Enabled);
 
         if (GPS_Enabled || Network_Enabled) {
-            if (firstPassed) {
+            if (!firstPassed) {
                 CharSequence text= "GPS connected";
                 int duration= Toast.LENGTH_SHORT;
                 Toast toast= Toast.makeText(this, text, duration);
