@@ -44,11 +44,13 @@ public class Processor {
         // update된 currentVideoCount와 그 다음 파일을 전송하게 할것
         accidentOccured= true;
         setTriggeredCount();
+        /*
         try {
             sender.sendAccidentOccur();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        */
     }
 
     /**
@@ -103,7 +105,7 @@ public class Processor {
     int triggeredCount;
     int triggeredNextCount;
 
-    final int sleepTime= 10000;
+    final int sleepTime= 20000;
 
 
     /**
@@ -120,7 +122,7 @@ public class Processor {
         // TODO: 16. 5. 29. 초기값 0.0 인 경우에는 송신하지 않기[완료], socket이 끊어졌을 경우 재연결 시도
 
         /* synchronized */
-        public void sendFile(int count) throws IOException {
+        synchronized public void sendFile(int count) throws IOException {
             // directory path
             File dirPath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyCameraApp");
             //String dirPath = "/storage/emulated/legacy/Pictures";
@@ -145,7 +147,8 @@ public class Processor {
                 bufferedInputStream = new BufferedInputStream(fileInputStream);
                 //size= (int)file_current.length();
                 data = new byte[size];
-                System.out.println("first file sending...");
+                System.out.println("file sending...");
+                System.out.println(file_current.getPath());
 
                 //fileDOS.writeInt(size);
                 //fileDOS.write(bufferedInputStream.read(data));
@@ -155,20 +158,16 @@ public class Processor {
                 }
 
 
-
-                //dataOutputStream.write();
-                //fileDOS.flush();
+                fileDOS.flush();
                 fileDOS.close();
                 bufferedInputStream.close();
                 fileInputStream.close();
                 fileSocket.close();
-                //triggeredCount= 0;
-                //triggeredNextCount= 0;
 
             } catch (SocketException e) {
                 e.printStackTrace();
             }
-            System.out.println("first file sent.");
+            System.out.println("file sent.");
             System.out.println(file_current.length());
 
 
@@ -218,11 +217,12 @@ public class Processor {
                         // accidentaround 실행시, 아직비디오가 녹화 안된 경우
                         try {
                             sleep(sleepTime);
+                            sendFile(1);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                     }
-                    sendFile(currentVideoCount);    // cycle 도는 중에 around호출받았을 떄 최근에 찍은거 보내기
+                    else sendFile(currentVideoCount);    // cycle 도는 중에 around호출받았을 떄 최근에 찍은거 보내기
 
                 }
                 System.out.println(latitude);
